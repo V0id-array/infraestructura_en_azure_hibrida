@@ -1,9 +1,25 @@
-# Memoria de Arquitectura: Infraestructura Híbrida en Azure
+# Memoria Técnica de Arquitectura: Infraestructura Híbrida en Microsoft Azure
 
-Documento de diseño técnico y topología de red para el Proyecto de Fin de Grado (TFG).
+**Proyecto Fin de Grado (TFG) / Proyecto Fin de Curso**  
+**Autor:** Félix Sánchez González  
+**Repositorio:** [https://github.com/V0id-array/infraestructura_en_azure_hibrida](https://github.com/V0id-array/infraestructura_en_azure_hibrida)  
+**Tecnologías:** Microsoft Azure, Terraform, Azure CLI, Bash, PowerShell, Kubernetes, Microsoft Sentinel, Purview, Azure Arc.
 
+---
 
-## Diagrama de Arquitectura
+## 1. Introducción y Justificación Técnica
+
+El presente proyecto diseña e implementa una infraestructura empresarial integral bajo un modelo híbrido en Microsoft Azure. La solución resuelve los retos operativos, de conectividad y de seguridad que enfrentan organizaciones en procesos de modernización tecnológica:
+
+1. **Aislamiento y segmentación:** Implementación del patrón de arquitectura Hub-Spoke para separar tráfico de gestión, cargas de comercio electrónico y almacenamiento corporativo.
+2. **Continuidad e identidad:** Despliegue de controladores de dominio Windows Server en alta disponibilidad entre Zonas de Disponibilidad con balanceo de carga interno.
+3. **Persistencia híbrida:** Coexistencia de almacenamiento local y en la nube mediante sincronización transparente con Azure File Sync.
+4. **Resiliencia de aplicaciones:** Despliegue de una plataforma web transaccional (WooCommerce) sobre Kubernetes gestionado (AKS) con aceleración en memoria y bases de datos aisladas.
+5. **Seguridad y observabilidad:** Monitorización perimetral con WAF en Azure Front Door, centralización de logs y detección SIEM/SOAR con Microsoft Sentinel, y clasificación automatizada de datos sensibles con Microsoft Purview.
+
+---
+
+## 2. Diagrama General de Arquitectura
 
 ```mermaid
 graph TB
@@ -78,78 +94,82 @@ graph TB
     RSV -.->|"Backup"| Storage
 ```
 
-## Topología de Red
+---
 
-| VNet | Rango CIDR | Subredes |
-|:---|:---|:---|
-| `vnet-hub-euw` | `10.0.0.0/16` | `AzureFirewallSubnet` (10.0.1.0/26), `GatewaySubnet` (10.0.2.0/27), `AzureBastionSubnet` (10.0.3.0/26), `snet-management` (10.0.4.0/24) |
-| `vnet-woocommerce-euw` | `10.1.0.0/16` | `snet-aks-nodes` (10.1.1.0/24), `snet-database` (10.1.10.0/24), `snet-cache` (10.1.11.0/24) |
-| `vnet-corporate-euw` | `10.2.0.0/16` | `snet-storage` (10.2.1.0/24), `snet-purview` (10.2.2.0/24), `snet-keyvault` (10.2.3.0/24) |
-| Sede local simulación | `172.16.1.0/24` | Conectada al Hub vía VPN Gateway S2S |
+## 3. Topología de Red y Segmentación
 
+### 3.1 Plan de Direccionamiento IP
 
-## Componentes por área
+| Entorno / VNet | CIDR | Subred | Rango Subred | Propósito |
+|:---|:---|:---|:---|:---|
+| **VNet Hub** (`vnet-hub-westeurope`) | `10.0.0.0/16` | `AzureFirewallSubnet` | `10.0.1.0/26` | Inspección y filtrado de tráfico perimetral e inter-VNet. |
+| | | `GatewaySubnet` | `10.0.2.0/27` | Terminación del túnel IPsec Site-to-Site con sede local. |
+| | | `AzureBastionSubnet` | `10.0.3.0/26` | Acceso RDP/SSH gestionado sin IPs públicas directas. |
+| | | `snet-management` | `10.0.4.0/24` | Controladores de dominio AD DS y Balanceador Interno. |
+| **VNet Spoke WooCommerce** (`vnet-woocommerce-westeurope`) | `10.1.0.0/16` | `snet-aks-nodes` | `10.1.1.0/24` | Nodos de cómputo del clúster AKS. |
+| | | `snet-database` | `10.1.10.0/24` | Subred delegada para Azure Database for MySQL. |
+| | | `snet-cache` | `10.1.11.0/24` | Subred dedicada para Azure Cache for Redis. |
+| **VNet Spoke Corporate** (`vnet-corporate-westeurope`) | `10.2.0.0/16` | `snet-storage` | `10.2.1.0/24` | Private Endpoint para acceso privado a Azure Files. |
+| | | `snet-purview` | `10.2.2.0/24` | Escaneo y gobernanza de datos con Purview. |
+| | | `snet-keyvault` | `10.2.3.0/24` | Acceso privado a secretos en Key Vault. |
+| **Sede Local (On-Premises)** | `172.16.1.0/24` | `LocalNetwork` | `172.16.1.0/24` | Servidores locales gestionados por Azure Arc. |
 
-### Monitorización y Seguridad
-- Log Analytics Workspace central (`law-central-*`)
-- Microsoft Sentinel habilitado sobre el workspace
-- Azure Key Vault para secretos de base de datos y AD
+### 3.2 Enrutamiento e Interconexión
+- **VNet Peering:** Conexión bidireccional no transitiva entre Hub y Spokes (`Hub <-> WooCommerce`, `Hub <-> Corporate`).
+- **Conectividad Híbrida:** VPN Gateway SKU `VpnGw1AZ` con túnel IKEv2 / IPsec y clave compartida hacia la sede física.
+- **Acceso Administrativo:** Azure Bastion estándar para administración remota de controladores de dominio y nodos sin exposición de puertos a Internet.
 
-### Almacenamiento
-- Azure Storage Account con replicación GRS
-- File Share corporativo con Private Endpoint
-- Replicación híbrida vía Azure File Sync (Storage Sync Service + Sync Group)
-- Catálogo Microsoft Purview
+---
 
-### Servidores Híbridos (Arc)
-- 2 servidores Windows conectados mediante agente Arc
-- Regla DCR para recolectar eventos y contadores de rendimiento
+## 4. Servicios de Identidad (Active Directory Domain Services)
 
-### WooCommerce (AKS)
-- Clúster AKS (2 nodos)
-- Azure Container Registry
-- Azure Database for MySQL Flexible Server en subred delegada
-- Azure Cache for Redis
-- Azure Front Door con política WAF
+- **Distribución en Zonas:** 2 máquinas virtuales Windows Server 2022 Datacenter desplegadas en Zonas de Disponibilidad independientes (Zona 1 y Zona 2) para tolerancia a fallos de datacenter.
+- **Asignación IP:** IPs estáticas fijas (`10.0.4.10` para DC1 y `10.0.4.11` para DC2).
+- **Balanceador Interno (ILB):** Azure Standard Load Balancer con IP fija `10.0.4.9` configurado con sondas de salud TCP y reglas de balanceo para:
+  - Puerto 53 (TCP y UDP): Resolución DNS integrada en el dominio.
+  - Puerto 389 (TCP): Consultas y autenticación LDAP.
+- **Aprovisionamiento DSC:** Extensión `CustomScriptExtension` que inicializa el primer DC creando el bosque (`corp.enterprise.local`) y une automáticamente al segundo DC como réplica del dominio tras el bootstrap.
+- **Almacenamiento de Base de Datos:** Disco gestionado Premium SSD de 32 GB adjunto a cada DC para albergar la base de datos `NTDS` y el árbol `SYSVOL`.
 
-### Directorio Activo
-- 2 Domain Controllers (Windows Server 2022) en Zonas 1 y 2
-- Internal Load Balancer en `10.0.4.9` para balanceo DNS (puerto 53) y LDAP (puerto 389)
-- Discos de datos dedicados para NTDS
+---
 
-### Copias de Seguridad
-- Recovery Services Vault central (GRS)
-- Política de backup diaria para VMs (retención 30 días)
-- Backup para Azure File Share
+## 5. Almacenamiento Corporativo y Gobernanza
 
-## Estructura del repositorio
+- **Storage Account Corporativo:** Tipo `StorageV2` con replicación geográfica `GRS` y cifrado de infraestructura habilitado.
+- **File Share SMB:** Recurso compartido departamental (`share-corporate`) estructurado en directorios funcionales: `Direccion`, `RRHH`, `Finanzas`, `IT`, `Legal`, `Operaciones`.
+- **Acceso Privado:** Private Endpoint asociado a Private DNS Zone (`privatelink.file.core.windows.net`) vinculado a las VNets corporativas.
+- **Azure File Sync:** Servicio de sincronización bidireccional entre el File Share en la nube (Cloud Endpoint) y los servidores locales registrados mediante el agente de sincronización.
+- **Microsoft Purview:** Cuenta de Purview desplegada con Managed Identity para catalogar activos de datos, clasificar información confidencial y validar el cumplimiento normativo (DNI, IBAN, tarjetas de crédito, contraseñas).
 
-```
-azure/
-├── 00-prepare-env.sh
-├── planning.md
-├── progress.md
-├── README.md
-├── scripts/
-│   ├── 01-init-backend.sh
-│   ├── 02-deploy-infra.sh
-│   ├── 03-validate-infra.sh
-│   ├── 04-join-storage-to-ad.ps1
-│   ├── arc-onboard-windows.ps1
-│   └── enable-sentinel-connectors.sh
-├── terraform/
-│   ├── providers.tf
-│   ├── main.tf
-│   ├── variables.tf
-│   ├── outputs.tf
-│   └── modules/
-│       ├── networking/
-│       ├── security/
-│       ├── corporate-storage/
-│       ├── active-directory/
-│       ├── arc/
-│       ├── backup/
-│       └── woocommerce/
-└── kubernetes/
-```
+---
+
+## 6. Plataforma de Cargas de Trabajo (WooCommerce en AKS)
+
+- **Clúster Kubernetes (AKS):** Nodos basados en Ubuntu Linux con escalado automático (1 a 5 nodos `Standard_D2s_v3`), integración de red Azure CNI con políticas de red Calico.
+- **Contenedores:** Registro privado Azure Container Registry (ACR) con asignación de rol `AcrPull` sobre la identidad administrada de kubelet.
+- **Base de Datos Transaccional:** Azure Database for MySQL Flexible Server versión 8.0, desplegado en subred delegada y enlazado con Private DNS Zone (`privatelink.mysql.database.azure.com`).
+- **Caché en Memoria:** Azure Cache for Redis (Standard C1) para gestión de sesiones de usuarios y caché de consultas de WordPress.
+- **Punto de Entrada e Ingress:** Azure Front Door Premium con endpoint global y Web Application Firewall (WAF) configurado en modo `Prevention` con el conjunto de reglas administradas `Microsoft_DefaultRuleSet 1.1` contra vulnerabilidades OWASP Top 10.
+
+---
+
+## 7. Monitorización, Seguridad y Continuidad
+
+- **SIEM / SOAR:** Log Analytics Workspace central configurado con retención de 90 días y habilitación de Microsoft Sentinel.
+- **Detección de Amenazas:** Reglas de análisis programadas en KQL para identificar patrones de ataque (ej. detección de intentos de fuerza bruta).
+- **Servidores Híbridos (Azure Arc):** Data Collection Rule (DCR) para Azure Monitor Agent (AMA) configurada para ingerir eventos de seguridad de Windows y contadores de rendimiento (CPU, RAM, Disco, Red) de servidores locales.
+- **Custodia de Secretos:** Azure Key Vault con autorización RBAC (`Key Vault Administrator`, `Key Vault Secrets User`) y auditoría conectada al Workspace central.
+- **Protección de Datos (Azure Backup):** Recovery Services Vault central con política diaria para máquinas virtuales (retención 30 días diarios, 4 semanales, 12 mensuales) y protección automatizada del Azure File Share corporativo.
+
+---
+
+## 8. Verificación y Resultados
+
+El entorno cuenta con scripts de validación técnica que comprueban:
+1. Conectividad y estado de salud de los balanceadores de carga.
+2. Resolución DNS privada a través del ILB de Active Directory.
+3. Disponibilidad de los endpoints privados de almacenamiento y bases de datos.
+4. Estado de los pods y servicios en Kubernetes.
+5. Ingesta de eventos en Log Analytics y Microsoft Sentinel.
+
 

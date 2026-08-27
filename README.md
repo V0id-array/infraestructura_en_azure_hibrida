@@ -1,9 +1,22 @@
-# Proyecto de Fin de Grado: Infraestructura Híbrida en Azure
+# Proyecto Fin de Grado: Infraestructura Empresarial Híbrida en Microsoft Azure
 
-Diseño e implementación de una infraestructura empresarial híbrida en Microsoft Azure mediante IaC (Terraform y Azure CLI). El proyecto abarca topología Hub-Spoke, Active Directory en alta disponibilidad, almacenamiento centralizado con replicación híbrida, plataforma de comercio electrónico sobre AKS, gobierno de datos y monitorización centralizada con Sentinel.
+Diseño, aprovisionamiento y gestión de una infraestructura empresarial híbrida en Microsoft Azure mediante Infraestructura como Código (IaC). El proyecto integra una topología de red Hub-Spoke, servicios de identidad Active Directory Domain Services en alta disponibilidad multizona, almacenamiento departamental con sincronización híbrida vía Azure File Sync, plataforma de comercio electrónico sobre Azure Kubernetes Service (AKS), gobierno del dato con Microsoft Purview y seguridad centralizada con Microsoft Sentinel.
 
+---
 
-## Arquitectura
+## 1. Objetivos del Proyecto
+
+- **Automatización e IaC:** Implementación completa y modular mediante Terraform, con versión paralela en scripts nativos de Azure CLI y Bash para entornos sin dependencias externas.
+- **Topología de red:** Arquitectura Hub-Spoke con inspección perimetral mediante Azure Firewall, acceso administrativo seguro con Azure Bastion y conectividad IPsec S2S hacia sedes locales.
+- **Identidad corporativa:** Despliegue de controladores de dominio Windows Server 2022 distribuidos en Zonas de Disponibilidad (HA) con balanceo interno para servicios DNS y LDAP.
+- **Almacenamiento híbrido:** File shares corporativos sobre Azure Files con acceso privado mediante Private Endpoints y sincronización bidireccional continua hacia servidores locales mediante Azure File Sync.
+- **Cargas de trabajo contenerizadas:** Plataforma de comercio electrónico (WooCommerce) desplegada en AKS, base de datos gestionada Azure Database for MySQL Flexible Server, caché Redis en memoria y punto de entrada global con Azure Front Door y Web Application Firewall (WAF).
+- **Seguridad y observabilidad:** Monitorización y detección de amenazas centralizada mediante Log Analytics Workspace y Microsoft Sentinel, custodia de claves en Azure Key Vault con RBAC y políticas de backup con Recovery Services Vault.
+- **Gobierno del dato:** Catálogo y clasificación automatizada de datos sensibles (RGPD, PCI-DSS) con Microsoft Purview.
+
+---
+
+## 2. Arquitectura del Sistema
 
 ```mermaid
 graph TB
@@ -78,72 +91,161 @@ graph TB
     RSV -.->|"Backup"| Storage
 ```
 
+---
 
-## Requisitos
+## 3. Estructura del Repositorio
 
-- Terraform >= 1.5.0
-- Azure CLI (`az`)
-- PowerShell 5.1+ (para scripts de AD / Windows)
-- Permisos de Contributor en la suscripción
+```
+.
+├── 00-prepare-env.sh              # Registro de resource providers en la suscripcion
+├── README.md                      # Memoria general y guia del proyecto
+├── planning.md                    # Memoria tecnica detallada de arquitectura
+├── progress.md                    # Registro cronologico de fases e incidencias
+├── architecture_diagram.drawio    # Diagrama editable en formato Draw.io
+│
+├── terraform/                     # Implementacion en Terraform (IaC principal)
+│   ├── main.tf                    # Orquestador raiz de modulos
+│   ├── variables.tf               # Variables de entrada globales
+│   ├── outputs.tf                 # Salidas funcionales de la infraestructura
+│   ├── providers.tf               # Configuracion de AzureRM, Random y Backend
+│   ├── terraform.tfvars.example   # Plantilla de valores de configuracion
+│   └── modules/
+│       ├── networking/            # VNets, subredes, peering, Firewall, Bastion, VPN
+│       ├── active-directory/      # VMs Windows Server, DSC de AD DS, ILB
+│       ├── corporate-storage/     # Storage Account, File Share, Private Endpoint, Purview, AFS
+│       ├── woocommerce/           # AKS, MySQL Flexible, Redis, ACR, Front Door + WAF
+│       ├── security/              # Log Analytics Workspace, Sentinel, Key Vault
+│       ├── backup/                # Recovery Services Vault y politicas de retencion
+│       └── arc/                   # Reglas de recoleccion DCR para servidores locales
+│
+├── az-cli/                        # Implementacion equivalente en Azure CLI / Bash
+│   ├── config.env                 # Variables de entorno compartidas
+│   ├── deploy.sh                  # Orquestador de despliegue secuencial
+│   ├── deploy-parallel.sh         # Orquestador de despliegue concurrente
+│   ├── validate.sh                # Script de verificacion de recursos
+│   ├── destroy.sh                 # Script de desmantelamiento
+│   ├── connect-guide.sh           # Guia de comandos de conexion
+│   └── modules/                   # 01-networking.sh a 07-backup.sh
+│
+├── kubernetes/                    # Manifiestos para la plataforma de aplicaciones
+│   ├── 01-secrets.yaml            # Secretos de conexion a MySQL
+│   ├── 02-configmap.yaml          # Script de auto-instalacion de WooCommerce y WP-CLI
+│   ├── 03-pvc.yaml                # Solicitud de volumen persistente (Azure Disk)
+│   ├── 04-wordpress.yaml          # Deployment y Service LoadBalancer de WordPress
+│   └── README.md                  # Procedimiento de despliegue en AKS
+│
+└── scripts/                       # Herramientas de soporte y automatizacion
+    ├── 01-init-backend.sh         # Creacion del backend remoto de Terraform (Bash)
+    ├── 01-init-backend.ps1        # Creacion del backend remoto de Terraform (PowerShell)
+    ├── 02-deploy-infra.sh         # Ejecucion automatizada de terraform apply
+    ├── 03-validate-infra.sh       # Bateria de pruebas de conexion y resolucion DNS
+    ├── 04-join-storage-to-ad.ps1  # Script para unir Azure Files al dominio Active Directory
+    ├── arc-onboard-windows.ps1    # Script para registro de servidores locales en Azure Arc
+    └── populate-sensitive-data.sh # Generador de datos sinteticos para escaneo Purview
+```
 
-## Despliegue
+---
 
-### 1. Preparar entorno y providers
+## 4. Requisitos Previos
+
+- **Azure CLI (`az`):** Versión >= 2.40.0 con sesión autenticada (`az login`).
+- **Terraform:** Versión >= 1.5.0.
+- **Kubectl:** Para la interacción con el clúster AKS.
+- **PowerShell:** Versión 5.1 o Core (para ejecución de scripts de AD DS y Azure Arc).
+- **Permisos:** Rol `Contributor` o `Owner` sobre la suscripción de Azure destino.
+
+---
+
+## 5. Guía de Despliegue
+
+### 5.1 Preparación de la suscripción
+Registra los proveedores de recursos necesarios:
 ```bash
 chmod +x 00-prepare-env.sh
 ./00-prepare-env.sh
 ```
 
-### 2. Inicializar backend remoto
-Crea el storage account para el tfstate:
+### 5.2 Inicialización del backend remoto (Terraform State)
+Crea el Resource Group y la Storage Account protegida con bloqueo para el archivo de estado:
 ```bash
 chmod +x scripts/01-init-backend.sh
 ./scripts/01-init-backend.sh
 ```
-*(En Windows ejecutar `.\scripts\01-init-backend.ps1`)*
 
-### 3. Variables
-Crear `terraform/terraform.tfvars`:
+### 5.3 Configuración de parámetros
+Crea el archivo `terraform/terraform.tfvars` a partir de la plantilla:
+```bash
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+```
+Ajusta las contraseñas de administrador de Active Directory y MySQL:
 ```hcl
 project_name         = "enterprise"
 environment          = "prod"
 location             = "westeurope"
-ad_admin_password    = "PasswordAD123!"
-mysql_admin_password = "PasswordDB123!"
+ad_admin_password    = "TuPasswordSeguro123!"
+mysql_admin_password = "TuPasswordSeguro123!"
 ```
 
-### 4. Aplicar Terraform
+### 5.4 Despliegue de la infraestructura
 ```bash
 chmod +x scripts/02-deploy-infra.sh
 ./scripts/02-deploy-infra.sh
 ```
 
-### 5. Pasos post-despliegue
+---
 
-**Unir Storage Account al dominio AD (ejecutar desde un DC):**
+## 6. Configuración Post-Despliegue
+
+### 6.1 Integración de Azure Files con Active Directory
+Ejecuta el script desde uno de los controladores de dominio desplegados (`dc-01` o `dc-02`) para habilitar autenticación Kerberos en el File Share:
 ```powershell
-.\scripts\04-join-storage-to-ad.ps1 -StorageAccountName <storage_name> -ResourceGroupName <rg_name>
+.\scripts\04-join-storage-to-ad.ps1 -StorageAccountName <STORAGE_ACCOUNT> -ResourceGroupName <RESOURCE_GROUP>
 ```
 
-**Onboarding de servidores a Azure Arc:**
+### 6.2 Onboarding de servidores locales en Azure Arc
+Ejecuta en cada servidor Windows local para vincularlo a la regla DCR de Azure Monitor:
 ```powershell
-.\scripts\arc-onboard-windows.ps1 -SubscriptionId <sub_id> -ResourceGroup <rg_name> -Location "westeurope"
+.\scripts\arc-onboard-windows.ps1 -SubscriptionId <SUB_ID> -ResourceGroup <RESOURCE_GROUP> -Location "westeurope"
 ```
 
-**Validar recursos:**
-```bash
-./scripts/03-validate-infra.sh
-```
-
-**Desplegar WordPress / WooCommerce en AKS:**
+### 6.3 Despliegue de la aplicación WooCommerce en AKS
 ```bash
 az aks get-credentials --resource-group rg-enterprise-prod-westeurope --name aks-woo-enterprise-prod
 kubectl apply -f kubernetes/
 ```
 
-## Destrucción
+### 6.4 Verificación de la infraestructura
+Ejecuta la batería de pruebas automatizada:
+```bash
+./scripts/03-validate-infra.sh
+```
 
+---
+
+## 7. Despliegue Alternativo mediante Azure CLI
+
+Si no se dispone de Terraform en el entorno ejecutor, es posible desplegar la misma topología de forma nativa:
+```bash
+cd az-cli
+chmod +x deploy.sh deploy-parallel.sh validate.sh destroy.sh modules/*.sh
+./deploy.sh
+```
+
+---
+
+## 8. Desmantelamiento y Limpieza
+
+Para eliminar la totalidad de los recursos aprovisionados y evitar costes residuales:
+
+**Mediante Terraform:**
 ```bash
 cd terraform
 terraform destroy
 ```
+
+**Mediante Azure CLI:**
+```bash
+cd az-cli
+./destroy.sh
+```
+

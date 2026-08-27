@@ -1,6 +1,7 @@
-# Plan de Arquitectura - Red Hub-Spoke Azure
+# Memoria de Arquitectura: Infraestructura Híbrida en Azure
 
-Topología de red y componentes del entorno Azure desplegado con Terraform y Azure CLI.
+Documento de diseño técnico y topología de red para el Proyecto de Fin de Grado (TFG).
+
 
 ## Diagrama de Arquitectura
 

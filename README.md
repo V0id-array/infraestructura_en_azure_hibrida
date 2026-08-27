@@ -1,6 +1,7 @@
-# Infraestructura Hub-Spoke en Azure
+# Proyecto de Fin de Grado: Infraestructura Híbrida en Azure
 
-Infraestructura en Azure con Terraform y scripts auxiliares en Bash/PowerShell. Incluye red Hub-Spoke, Active Directory en HA, Azure Files con sincronización híbrida, clúster AKS para WooCommerce, políticas de backup y monitorización centralizada.
+Diseño e implementación de una infraestructura empresarial híbrida en Microsoft Azure mediante IaC (Terraform y Azure CLI). El proyecto abarca topología Hub-Spoke, Active Directory en alta disponibilidad, almacenamiento centralizado con replicación híbrida, plataforma de comercio electrónico sobre AKS, gobierno de datos y monitorización centralizada con Sentinel.
+
 
 ## Arquitectura
 

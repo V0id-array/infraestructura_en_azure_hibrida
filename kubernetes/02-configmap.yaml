@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wordpress-init-script
+  namespace: default
+data:
+  install-woocommerce.sh: |
+    #!/bin/bash
+    set +e
+    echo "==> Iniciando inicialización de WooCommerce en segundo plano..."
+
+    (
+      # Esperar a que WordPress se haya levantado y responda a consultas locales
+      sleep 15
+      
+      # Instalar WP-CLI
+      if ! command -v wp &> /dev/null; then
+          echo "Descargando WP-CLI..."
+          curl -sL -o /tmp/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          chmod +x /tmp/wp
+          mv /tmp/wp /usr/local/bin/wp
+      fi
+
+      # Cambiar al directorio de WordPress
+      cd /var/www/html
+
+      # Esperar a que la base de datos esté lista
+      for i in {1..30}; do
+          if php -r "\$c = mysqli_init(); \$c->ssl_set(NULL, NULL, NULL, NULL, NULL); if (@\$c->real_connect(getenv('WORDPRESS_DB_HOST'), getenv('WORDPRESS_DB_USER'), getenv('WORDPRESS_DB_PASSWORD'), getenv('WORDPRESS_DB_NAME'), 3306, NULL, MYSQLI_CLIENT_SSL)) { exit(0); } else { exit(1); }" &> /dev/null; then
+              echo "Conexión a base de datos establecida."
+              break
+          fi
+          echo "Esperando base de datos ($i/30)..."
+          sleep 5
+      done
+
+      # Instalar WordPress Core si no está listo
+      if ! wp core is-installed --allow-root &> /dev/null; then
+          echo "Instalando WordPress Core..."
+          wp core install \
+              --url="http://localhost" \
+              --title="WooCommerce Enterprise Demo Store" \
+              --admin_user="admin" \
+              --admin_password="WooAdminPassword2026!" \
+              --admin_email="admin@enterprise.local" \
+              --skip-email \
+              --allow-root
+      fi
+
+      # Instalar y activar WooCommerce
+      if ! wp plugin is-active woocommerce --allow-root &> /dev/null; then
+          echo "Instalando plugin WooCommerce..."
+          wp plugin install woocommerce --activate --allow-root
+          
+          echo "Configurando estructura de enlaces permanentes (permalinks)..."
+          wp option update permalink_structure '/%postname%/' --allow-root
+          
+          echo "Creando páginas estándar de WooCommerce..."
+          wp wc tool run install_pages --user=admin --allow-root
+      fi
+
+      # Instalar y activar el tema Storefront (tema oficial de WooCommerce)
+      if ! wp theme is-active storefront --allow-root &> /dev/null; then
+          echo "Instalando tema Storefront..."
+          wp theme install storefront --activate --allow-root
+      fi
+
+      # Crear productos de demostración
+      echo "Comprobando productos demo..."
+      PRODUCT_COUNT=$(wp post list --post_type=product --format=count --allow-root || echo "0")
+      if [ "$PRODUCT_COUNT" -eq 0 ]; then
+          echo "Creando catálogo de productos de demostración..."
+          
+          # Producto 1: Suscripción Cloud Enterprise
+          P1_ID=$(wp post create --post_type=product --post_title="Suscripción Cloud Enterprise" --post_content="Suscripción mensual de nivel corporativo para servicios de infraestructura en Azure." --post_status=publish --porcelain --allow-root)
+          wp post meta update $P1_ID _price 299.99 --allow-root
+          wp post meta update $P1_ID _regular_price 299.99 --allow-root
+          wp post meta update $P1_ID _sku "CLOUD-ENT-SUB" --allow-root
+          wp post meta update $P1_ID _stock_status "instock" --allow-root
+          
+          # Producto 2: Servidor de Archivos Híbrido 10TB
+          P2_ID=$(wp post create --post_type=product --post_title="Servidor de Archivos Híbrido 10TB" --post_content="Almacenamiento local sincronizado activamente con Azure Files a través de Azure File Sync." --post_status=publish --porcelain --allow-root)
+          wp post meta update $P2_ID _price 1499.00 --allow-root
+          wp post meta update $P2_ID _regular_price 1499.00 --allow-root
+          wp post meta update $P2_ID _sku "HYBRID-FS-10TB" --allow-root
+          wp post meta update $P2_ID _stock_status "instock" --allow-root
+
+          # Producto 3: Soporte Técnico Enterprise 24/7
+          P3_ID=$(wp post create --post_type=product --post_title="Soporte Técnico Enterprise 24/7" --post_content="Acceso prioritario 24/7 a ingenieros de soporte certificados para toda la infraestructura híbrida." --post_status=publish --porcelain --allow-root)
+          wp post meta update $P3_ID _price 499.00 --allow-root
+          wp post meta update $P3_ID _regular_price 499.00 --allow-root
+          wp post meta update $P3_ID _sku "SUP-ENT-247" --allow-root
+          wp post meta update $P3_ID _stock_status "instock" --allow-root
+      fi
+
+      echo "==> Configuración de WooCommerce demo completada."
+    ) &
+
+    exit 0

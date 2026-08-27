@@ -1,0 +1,57 @@
+#===============================================================================
+# Terraform - Ejemplo de terraform.tfvars
+# Copia este archivo como terraform.tfvars y rellena los valores.
+#===============================================================================
+
+project_name = "enterprise"
+environment  = "prod"
+location     = "westeurope"
+
+tags = {
+  Proyecto    = "InfraestructuraEmpresarial"
+  ManagedBy   = "Terraform"
+  Empresa     = "MiEmpresa"
+  Responsable = "equipo-infra"
+}
+
+# ─── Networking ───────────────────────────────────────────────────────────────
+hub_vnet_address_space         = ["10.0.0.0/16"]
+woocommerce_vnet_address_space = ["10.1.0.0/16"]
+corporate_vnet_address_space   = ["10.2.0.0/16"]
+
+# ─── Sedes On-Premises (VPN Site-to-Site) ─────────────────────────────────────
+# Descomenta y configura con las IPs reales de cada sede.
+#
+# on_premises_sites = {
+#   "sede-central" = {
+#     gateway_ip    = "203.0.113.10"
+#     address_space = ["172.16.1.0/24"]
+#     shared_key    = "CambiaEstaClave!Sede1"
+#     description   = "Sede Central - Madrid"
+#   }
+#   "sede-sucursal-bcn" = {
+#     gateway_ip    = "198.51.100.20"
+#     address_space = ["172.16.2.0/24"]
+#     shared_key    = "CambiaEstaClave!Sede2"
+#     description   = "Sucursal - Barcelona"
+#   }
+#   "sede-sucursal-val" = {
+#     gateway_ip    = "192.0.2.30"
+#     address_space = ["172.16.3.0/24"]
+#     shared_key    = "CambiaEstaClave!Sede3"
+#     description   = "Sucursal - Valencia"
+#   }
+# }
+
+# ─── WooCommerce / AKS ───────────────────────────────────────────────────────
+aks_node_count       = 2
+aks_node_vm_size     = "Standard_D2s_v3"
+mysql_sku_name       = "B_Standard_B1ms"
+mysql_admin_username = "woo_admin"
+mysql_admin_password = "CAMBIA_ESTA_CONTRASEÑA_SEGURA!"
+
+# ─── Purview ──────────────────────────────────────────────────────────────────
+purview_managed_rg_name = "rg-purview-managed"
+
+# ─── Azure Arc ────────────────────────────────────────────────────────────────
+arc_enabled = true

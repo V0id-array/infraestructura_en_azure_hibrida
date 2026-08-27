@@ -1,0 +1,28 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+terraform.tfvars
+.terraform.lock.hcl
+
+# Azure CLI & Environment
+.env_seed
+.backend-config
+*.log
+logs/
+
+# Secrets & Local keys
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+
+# OS & Editors
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/

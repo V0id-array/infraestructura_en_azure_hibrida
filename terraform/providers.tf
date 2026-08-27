@@ -1,7 +1,5 @@
-#===============================================================================
-# Terraform - Providers & Backend Configuration
-# Infraestructura Empresarial Azure - Hub-Spoke Multi-Sede
-#===============================================================================
+# Terraform providers y configuracion de backend
+
 
 terraform {
   required_version = ">= 1.5.0"

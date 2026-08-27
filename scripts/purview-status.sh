@@ -51,12 +51,13 @@ for ds in sources:
             start = latest.get("startTime")
             disc = latest.get("assetsDiscovered")
             classif = latest.get("assetsClassified")
-            print(f"  ► Escaneo: {scan_name} ({ds_name})")
-            print(f"    - Estado:           {status}")
-            print(f"    - Tipo de Nivel:    {level} ({run_type})")
-            print(f"    - Inicio:           {start}")
-            print(f"    - Descubiertos:     {disc} archivos")
-            print(f"    - Clasificados:     {classif} archivos con datos sensibles")
+            print(f"  - Escaneo: {scan_name} ({ds_name})")
+            print(f"    Estado:        {status}")
+            print(f"    Nivel:         {level} ({run_type})")
+            print(f"    Inicio:        {start}")
+            print(f"    Descubiertos:  {disc} archivos")
+            print(f"    Clasificados:  {classif} archivos con datos sensibles")
         else:
-            print(f"  ► Escaneo: {scan_name} (Sin ejecuciones)")
+            print(f"  - Escaneo: {scan_name} (Sin ejecuciones)")
 '
+

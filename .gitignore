@@ -1,28 +1,33 @@
 # Terraform
-.terraform/
 *.tfstate
-*.tfstate.*
-*.tfplan
-tfplan
-terraform.tfvars
-.terraform.lock.hcl
+*.tfstate.backup
+*.tfvars
+*.tfvars.json
+.terraform/
+*.lock
 
-# Azure CLI & Environment
-.env_seed
-.backend-config
-*.log
-logs/
-
-# Secrets & Local keys
-*.pem
+# Kubernetes
+kubeconfig
 *.key
-id_rsa
-id_rsa.pub
+*.pem
+*.crt
+secrets/
 
-# OS & Editors
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
+# Entornos
+.env
+.env.local
+
+# IDE
 .vscode/
 .idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Backups
+*.bak
+*~

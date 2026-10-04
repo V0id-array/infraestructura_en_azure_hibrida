@@ -1,0 +1,7 @@
+# Placeholder para reglas KQL de Sentinel
+
+# Añadir aquí las queries de detección:
+# - Fuerza bruta AD (Event ID 4625)
+# - SQLi/XSS bloqueados por WAF
+# - Movimiento lateral SMB
+# - Exfiltración de datos
